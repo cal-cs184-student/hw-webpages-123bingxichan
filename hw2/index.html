@@ -27,16 +27,16 @@
 	</head>
 	<body>
 		<div class="container">
-		<h1>CS184/284A Spring 2025 Homework 2 Write-Up</h1>
-		<div style="text-align: center;">Names: </div>
+		<h1>CS184/284A Spring 2026 Homework 2 Write-Up</h1>
+		<div style="text-align: center;">Names: Cedric Chan</div>
 
 		<br>
 
-		Link to webpage: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+		Link to webpage:<a href="https://cal-cs184-student.github.io/hw-webpages-123bingxichan/hw2/index.html">https://cal-cs184-student.github.io/hw-webpages-123bingxichan/hw2/index.html</a>
 
 		<br>
 		
-		Link to GitHub repository: (TODO) <a href="https://cs184.eecs.berkeley.edu/sp25">cs184.eecs.berkeley.edu/sp25</a>
+		Link to GitHub repository:<a href="https://github.com/cal-cs184-student/hw2-meshedit-cedric_55">https://github.com/cal-cs184-student/hw2-meshedit-cedric_55</a>
 
 		<figure>
 			<img src="teapot.png" alt="Teapot" style="width:50%"/>
@@ -48,69 +48,225 @@
 		-->
 
 		<h2>Overview</h2>
-		Give a high-level overview of what you implemented in this homework. Think about what you've built as a whole. Share your thoughts on what interesting things you've learned from completing the homework.
+		I think this homework taught me the basics of 3D representation in graphics. I guess homework 1 taught me how to render and rasterize 2D images and how to alter their look for clarity etc, but the algorithms and math used in 2D would be horribly inefficient if expanded to 3D. Therefore, I found it fun and interesting to work with meshes and bezier curves to understand the speedups and efficiencies that come with different methods of 3D representation in graphics.
 
 		<h2>Section I: Bezier Curves and Surfaces</h2>
 
 		<h3>Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		To me, de Casteljau's algorithm is a way to calculate the value of a Bezier curve at a certain point.To my understanding, each step of de Casteljau's finds the intermediate control point by finding the midpoint of the 2 control points it is bounded by (if t = 0.5), otherwise it linearly inerpolated to find this midpoint. Rinse and repeat until we reach a 1D point, and this point lies on the bezier curve. I lowkenuinely just implemented the algorithm as described in the spec.
 
-		<p>Here is an example 2x2 gridlike structure using an HTML table. Each <b>tr</b> is a row and each <b>td</b> is a column in that row. You might find this useful for framing and showing your result images in an organized fashion.</p>
 		<div style="display: flex; flex-direction: column; align-items: center;">
 			<table style="width: 100%; text-align: center; border-collapse: collapse;">
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="bezier_1.png" width="400px"/>
+				  <figcaption></figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="bezier_2.png" width="400px"/>
+				  <figcaption></figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="bezier_3.png" width="400px"/>
+				  <figcaption></figcaption>
 				</td>
 			  </tr>
 			  <tr>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="bezier_4.png" width="400px"/>
+				  <figcaption></figcaption>
 				</td>
 				<td style="text-align: center;">
-				  <img src="teapot.png" width="400px"/>
-				  <figcaption>Caption goes here.</figcaption>
+				  <img src="bezier_5.png" width="400px"/>
+				  <figcaption></figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="bezier_7.png" width="400px"/>
+				  <figcaption></figcaption>
 				</td>
 			  </tr>
 			</table>
 		</div>
 
 		<h3>Part 2: Bezier surfaces with separable 1D de Casteljau</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		In Part 1, I implemented de Casteljau's algorithm for 2D bezier curves, but in Part 2 we have 3D bezier surfaces.De Casteljau extends to surfaces by just applying the algorithm twice, once in each direction.
+		A Bezier surface is defined by an n x n grid of control points. Given parameters (u, v), you first run the full 1D de Casteljau along each row using u, which collapses each row of n points down to a single point, giving you n points total, one per row. Then you run it one more time on those n points using v, and that gives you the final point on the surface.
+		In code, evaluateStep is basically identical to the curve version, but it takes a vector of 3D points and parameter t and returns one fewer intermediate point via lerp. evaluate1D just repeatedly calls evaluateStep until one point remains. evaluate finally loops over each row of controlPoints, calling evaluate1D with u to collapse each row to a single point, collecting those into a vector, and finally calling evaluate1D one more time on that vector with v to get the surface point.
+
+		<img src="bezier_teapot.png" alt="Teapot" style="width:50%"/>
+		<figcaption>Teapot rendered with Bezier surfaces</figcaption>
 
 		<h2>Section II: Triangle Meshes and Half-Edge Data Structure</h2>
 
 		<h3>Part 3: Area-weighted vertex normals</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		To get the area weighted vertex normal, I just looped over all neighboring faces of the vertex using the halfedge structure. For each face I grabbed two edge vectors going out from the vertex and took their cross product. The cool thing is the cross product gives you both the normal direction and the area at once since its magnitude is proportional to the triangle area, so you get area weighting for free. I accumulated all those cross products into a sum and normalized at the end.
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Before and after using vertex normals</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="184-hw3-3-before.png" width="400px"/>
+				  <figcaption>Before</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="184-hw3-3-after.png" width="400px"/>
+				  <figcaption>After</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
 
 		<h3>Part 4: Edge flip</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		Ok imma be so fr in this section. Initially I was in a time crunch to try and finish by the deadline, so I was throwing this into claude and gpt to try and correct each other to see if I could basically bag the models to converge to an answer. 
+		But the implementations kept having stupid fucking bugs where one triangle would be black, as shown below.
+		
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Flip bugs</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="flip_bug1.png" width="400px"/>
+				  <figcaption>Bug 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="flip_bug2.png" width="400px"/>
+				  <figcaption>Bug 2</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+
+		And as you do, I would throw in the code and have it output debug statements to see what was going on.
+		But the models kept going "I FOUND THE BUG" then it would reason and be like "wait i need to backpedal" and loop like this for 2 hours and i lost my midpoint
+
+		so i just drew the entire thing out, coded the entire thing out myself, and it worked first try :|. lowk shat my pants a bit but i learned a valuable lesson today :').
+
+		<img src="flip_drawing.png" alt="Teapot" style="width:50%"/>
+		<figcaption>Drawing of the flip algorithm</figcaption>
+
+		And now here is a flipping example
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Flipping example</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="before_flip.png" width="400px"/>
+				  <figcaption>Before flip</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="after_flip.png" width="400px"/>
+				  <figcaption>After flip</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
 
 		<h3>Part 5: Edge split</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		In a very similar story to flip, I was doing the two simultaneously, ran into a bug, drew it out, and had it work first try :').
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Split Bugs</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="split_bug1.png" width="400px"/>
+				  <figcaption>Bug 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="split_bug2.png" width="400px"/>
+				  <figcaption>Bug 2</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
+
+		<img src="split_drawing.png" alt="Teapot" style="width:50%"/>
+		<figcaption>Drawing of the split algorithm</figcaption>
+
+		And now here is a splitting example
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Splitting examples</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="before_split.png" width="400px"/>
+				  <figcaption>Before split</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="after_split.png" width="400px"/>
+				  <figcaption>After split</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="before_split_and_flip.png" width="400px"/>
+					<figcaption>Before split and flip</figcaption>
+				  </td>
+				  <td style="text-align: center;">
+					<img src="after_split_and_flip.png" width="400px"/>
+					<figcaption>After split and flip</figcaption>
+				  </td>
+			  </tr>
+			</table>
+		</div>
+
 
 		<h3>Part 6: Loop subdivision for mesh upsampling</h3>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		Ok so using the computations defined in the spec, I looped through all edges and vertices, and stored these calculations in the newPosition attribute of edges and vertices.
+		I then iterated through all of these original edges before splitting and stored them in a vector, then actually called split edge and moved the new vertex to the saved point. To flip, I checked if a new edge connects one old and one new vertex.
+		Finally, I iterate through every vertex and move it to its new position we calculated in step A.
 
-		<h2>(Optional) Section III: Potential Extra Credit - Art Competition: Model something Creative</h2>
-		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+		As for notes on how upsampling affects images, main observations are that sharp points get smoother, especially the spout of the teapot.
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Before and after upsampling</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="split_bug1.png" width="400px"/>
+				  <figcaption>Bug 1</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="split_bug2.png" width="400px"/>
+				  <figcaption>Bug 2</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
 
-		<h2>Additional Notes (please remove)</h2>
-		<ul>
-			<li>You can also add code if you'd like as so: <code>code code code</code></li>
-			<li>If you'd like to add math equations, 
-				<ul>
-					<li>You can write inline equations like so: \( a^2 + b^2 = c^2 \)</li>
-					<li>You can write display equations like so: \[ a^2 + b^2 = c^2 \]</li>
-				</ul>
-			</li>
-		</ul>
+		Moving onto the cube, I first just upsampled a bunch, and noticed that it became a potato. As I contintually split edges on a cube face, I noticed that the faces with more edges were more cube like after upsampling. So in the later pictures, I split a bunch of edges on three faces, and left the other half the same, and noticed that the split faces again were more cube like and the ones i left alone became potatoes.
+
+		<div style="display: flex; flex-direction: column; align-items: center;">
+			<table style="width: 100%; text-align: center; border-collapse: collapse;">
+			  <caption>Cube subdivion experiments</caption>
+			  <tr>
+				<td style="text-align: center;">
+				  <img src="cube.png" width="400px"/>
+				  <figcaption>Cube</figcaption>
+				</td>
+				<td style="text-align: center;">
+				  <img src="potato.png" width="400px"/>
+				  <figcaption>Potato (cube after 4 upsamples)</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="split_face.png" width="400px"/>
+					<figcaption>Split Face</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="upsample_1.png" width="400px"/>
+					<figcaption>Observation of upsampling</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="cubish_side.png" width="400px"/>
+					<figcaption>Cubish side of cube</figcaption>
+				</td>
+				<td style="text-align: center;">
+					<img src="potatoish_side.png" width="400px"/>
+					<figcaption>Potatoish side of cube</figcaption>
+				</td>
+			  </tr>
+			</table>
+		</div>
 		</div>
 	</body>
 </html>
