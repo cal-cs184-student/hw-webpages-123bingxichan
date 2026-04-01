@@ -324,26 +324,17 @@
             <p>The rendering pipeline starts with <code>raytrace_pixel</code>, which for each pixel shoots <code>ns_aa</code> camera rays through random jittered points within that pixel's area. Each ray gets generated in <code>generate_ray</code> by mapping the normalized image coordinates to a point on the virtual sensor plane sitting at <code>Z = -1</code> in camera space. The sensor corners are defined by the field of view angles, so I just lerp the input <code>(x, y)</code> from <code>[0, 1]</code> into <code>[-tan(hFov/2), tan(hFov/2)] × [-tan(vFov/2), tan(vFov/2)]</code>. Then I transform that direction into world space using the camera-to-world matrix <code>c2w</code> and shoot the ray from the camera position. Once the ray is out in the world, <code>est_radiance_global_illumination</code> calls the BVH to find what it hits, and the BVH walks down to the leaf nodes and tests each primitive. Each ray carries a <code>min_t</code> and <code>max_t</code> that get updated as we find intersections, so we always end up with the closest one.</p>
 
             <h3>Triangle intersection</h3>
-            <p>For triangle intersection I used the Möller–Trumbore algorithm, which I like to think of as just solving a linear system directly. The idea is that any point on the triangle can be written as <code>p1 + u*(p2-p1) + v*(p3-p1)</code> using barycentric coordinates, and any point on the ray is <code>o + t*d</code>. Setting these equal gives a 3×3 linear system with unknowns <code>(t, u, v)</code>. Möller–Trumbore uses Cramer's rule to solve this efficiently with cross products and dot products, avoiding explicitly computing the plane equation at all. Once I get back <code>(t, u, v)</code>, I check that <code>u &gt;= 0</code>, <code>v &gt;= 0</code>, and <code>u+v &lt;= 1</code> to confirm the hit point is actually inside the triangle, and that <code>t</code> falls within <code>[min_t, max_t]</code> to make sure it's a valid ray segment hit. If all that passes, I use <code>w = 1-u-v</code> as the third barycentric weight and interpolate the vertex normals to get a smooth surface normal at the hit point.</p>
+            <p>For triangle intersection I used the Möller–Trumbore algorithm, which I like to think of as just solving a linear system directly. The idea is that any point on the triangle can be written as <code>p1 + u*(p2-p1) + v*(p3-p1)</code> using barycentric coordinates, and any point on the ray is <code>o + t*d</code>. Setting these equal gives a 3×3 linear system with unknowns <code>(t, u, v)</code>. Möller–Trumbore uses some Math54 (cramer's rule) to solve this efficiently with cross products and dot products, avoiding explicitly computing the plane equation at all. Once I get back <code>(t, u, v)</code>, I check that <code>u &gt;= 0</code>, <code>v &gt;= 0</code>, and <code>u+v &lt;= 1</code> to confirm the hit point is actually inside the triangle, and that <code>t</code> falls within <code>[min_t, max_t]</code> to make sure it's a valid ray segment hit. If all that passes, I use <code>w = 1-u-v</code> as the third barycentric weight and interpolate the vertex normals to get a smooth surface normal at the hit point.</p>
 
-            <h3>Results — normal shading (small scenes)</h3>
-            <p>Normal visualization on a few small <code>.dae</code> scenes (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>).</p>
+            <h3>Results</h3>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
-                    <img src="img/task1/banana.png" alt="Banana scene, normal shading"/>
-                    <div class="image-caption"><code>banana.dae</code> (normal shading)</div>
-                </div>
-                <div class="image-item">
-                    <img src="img/task1/CBempty.png" alt="CBempty normal shading"/>
-                    <div class="image-caption"><code>CBempty.dae</code> (normal shading)</div>
-                </div>
-                <div class="image-item">
                     <img src="img/task1/CBspheres.png" alt="CBspheres normal shading"/>
-                    <div class="image-caption"><code>CBspheres.dae</code> (normal shading)</div>
+                    <div class="image-caption">Spheres</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task1/task1-3.png" alt="Additional small scene normal shading"/>
-                    <div class="image-caption">Additional small scene (tentative caption — rename if needed)</div>
+                    <div class="image-caption">Empty Scene</div>
                 </div>
             </div>
         </div>
@@ -352,29 +343,27 @@
             <h2>Part 2: Bounding Volume Hierarchy</h2>
 
             <h3>BVH construction</h3>
-            <p>My BVH construction works recursively. At each step I compute the bounding box of all the primitives in the current range, then decide whether to make a leaf or split further. If the number of primitives is within <code>max_leaf_size</code> I just make a leaf and store the iterator range. Otherwise I need to split, and for that I first look at the extent of the bounding box along each axis and pick the longest one. I like to think of this as choosing the axis where the geometry is most spread out, since splitting there tends to produce children with less overlap and better culling. The actual split value is the average centroid position along that axis, which is simple and works well in practice. I then use <code>std::partition</code> to reorder the primitives so everything with a centroid below the split goes left and everything above goes right. One edge case I had to handle is when all centroids happen to be identical and partition puts everything on one side, which would cause infinite recursion. I handle that by just falling back to splitting the range in half by index.</p>
+            <p>I construct a BVH tree recursively. At each step I compute the bounding box of all the primitives in the current range, then decide whether to make a leaf or split further. If the number of primitives is within <code>max_leaf_size</code> I just make a leaf and store the iterator range. Otherwise I need to split, and for that I first look at the extent of the bounding box along each axis and pick the longest one. I like to think of this as choosing the axis where the geometry is most spread out, since splitting there tends to produce children with less overlap and better culling. The actual split value is the average centroid position along that axis, which is simple and works well in practice. I then use <code>std::partition</code> to reorder the primitives so everything with a centroid below the split goes left and everything above goes right. One edge case I had to handle is when all centroids happen to be identical and partition puts everything on one side, which would cause infinite recursion. I handle that by just falling back to splitting the range in half by index.</p>
 
-            <h3>Rendering time comparison</h3>
-            <p>I rendered a few scenes to compare performance with and without BVH. For a simple scene like CBspheres the difference is modest since there are so few primitives. But on something like <code>beast.dae</code> or <code>CBlucy.dae</code> with hundreds of thousands of triangles the difference is dramatic. Without BVH, every ray has to test every single primitive, so render time scales as <code>O(n)</code> per ray. With BVH the tree reduces that to roughly <code>O(log n)</code> per ray by culling entire subtrees early via the bounding box test. In my tests <code>CBlucy.dae</code> went from taking many minutes to just a few seconds. The BVH construction itself takes a small upfront cost but it pays for itself almost immediately once you start shooting the large number of camera rays needed for a full render.</p>
+            <h3>Results</h3>
+			<p>I rendered a few scenes to compare performance with and without BVH. Before, <code>cow</code> took about 80 seconds, and after it was instant. Without BVH, every ray has to test every single primitive, so render time scales as <code>O(n)</code> per ray. With BVH the tree reduces that to roughly <code>O(log n)</code> per ray by pruning entire subtrees early via the bounding box test.</p>
 
-            <h3>Results — normal shading (large scenes, BVH)</h3>
-            <p>Heavier scenes that lean on BVH for interactive-ish preview (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>). Captions list the asset each render used (adjust filenames if yours differ).</p>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
                     <img src="img/task2/beetle.png" alt="Beetle scene normal shading"/>
-                    <div class="image-caption"><code>beetle.dae</code> (tentative)</div>
+                    <div class="image-caption">Beetle</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task2/cow.png" alt="Cow scene normal shading"/>
-                    <div class="image-caption"><code>cow.dae</code> (tentative)</div>
+                    <div class="image-caption">Cow</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task2/maxplanck.png" alt="Max Planck bust normal shading"/>
-                    <div class="image-caption"><code>maxplanck.dae</code> (tentative)</div>
+                    <div class="image-caption">Max Planck</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task2/teapot.png" alt="Teapot normal shading"/>
-                    <div class="image-caption"><code>teapot.dae</code> (tentative)</div>
+                    <div class="image-caption">Teapot</div>
                 </div>
             </div>
         </div>
@@ -384,93 +373,72 @@
             <p>For direct lighting I implemented two approaches: uniform hemisphere sampling and importance sampling over lights. Both are trying to answer the same question, which is how much light is reaching a surface point directly from light sources, but they go about it very differently.</p>
 
             <h3>Uniform hemisphere sampling</h3>
-            <p>The idea here is simple. At each hit point I sample random directions over the hemisphere, cast shadow rays in those directions, and check if any of them hit a light source. If one does, I evaluate the rendering equation contribution from that direction using the BSDF and cosine term and accumulate it. I like to think of this as throwing darts blindly at the sky and hoping some land on a light. It works in principle but it's wasteful because most rays just hit walls or miss entirely, especially when lights are small. The result is very noisy unless you throw a lot of samples at it.</p>
+            <p>At each hit point I sample random directions over the hemisphere, cast shadow rays in those directions, and check if any of them hit a light source. If one does, I evaluate the rendering equation contribution from that direction using the BSDF and cosine term and accumulate it. I like to think of this as throwing darts blindly at the sky and hoping some land on a light. It works in principle but it's wasteful because most rays just hit walls or miss entirely, especially when lights are small. The result is very noisy unless you throw a lot of samples at it.</p>
 
             <h3>Importance sampling lights</h3>
             <p>Instead of sampling random directions and hoping they hit something useful, here I directly sample points on each light source. For each light I draw a sample, compute the direction to it, and cast a shadow ray to check visibility. If nothing is blocking it I accumulate the contribution. This is much smarter because essentially every sample is doing useful work. It also handles point lights correctly, which hemisphere sampling fundamentally cannot since a random direction will never exactly hit a point.</p>
 
-            <h3>Results — both direct lighting estimators</h3>
-            <p>Uniform hemisphere vs light importance sampling (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>). Third panel is an extra hemisphere / settings variant from the same batch — relabel after you confirm CLI flags.</p>
-            <div class="image-grid image-grid-3">
-                <div class="image-item">
-                    <img src="img/task3/CBbunny_H_64_32.png" alt="CBbunny hemisphere sampling"/>
-                    <div class="image-caption">Hemisphere (tentative: <code>CBbunny_H_64_32.png</code>)</div>
-                </div>
+            <h3>Results - both direct lighting estimators</h3>
+			<p>The most striking different between importance and hemisphere sampling is noise and source. Hemisphere sampling is much more obviously noisy when compared to importance sampling, even with the same sample rate and light rays. Another observation of note is the banding of light near the top in the hemisphere variant, since you're sampling from each point on the hemisphere rather than just the light source. On the contrary, wehen looking at importance sampling there is no band on the light source (since you just render all the light from the source).</p>
+            <div class="image-grid image-grid-2">
                 <div class="image-item">
                     <img src="img/task3/CBbunny_H_64_32_3-3.png" alt="CBbunny hemisphere alternate settings"/>
-                    <div class="image-caption">Hemisphere variant (tentative: <code>CBbunny_H_64_32_3-3.png</code>)</div>
+                    <div class="image-caption">Hemisphere Sampling</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task3/CBbunny_64_32_3-4.png" alt="CBbunny light importance sampling"/>
-                    <div class="image-caption">Light sampling (tentative: <code>CBbunny_64_32_3-4.png</code>)</div>
+                    <div class="image-caption">Importance sampling </div>
                 </div>
             </div>
 
-            <h3>Results — soft shadows vs number of light rays (importance sampling, 1 spp)</h3>
-            <p><a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">Spec</a>: CBbunny with an area light, <code>-s 1</code>, and <code>-l</code> ∈ {1, 4, 16, 64}. There is no separate CBbunny <code>-l 4</code> file in <code>img/task3/</code> yet — <code>wall-e-4.png</code> stands in as a fourth panel until you replace it.</p>
+            <h3>Results — soft shadows vs light rays</h3>
+            <p>When increasing the number of light rays, we see a stark increase in the softness of the shadows. At lower numbers of rays (like 1 and 4), shadows are quite undersampled, whereas at l=64, we start to approach the realism of a true shadow with different levels of softness.</p>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
-                    <img src="img/task3/CBbunny_1_1_3-4.png" alt="CBbunny 1 light sample"/>
-                    <div class="image-caption"><code>-l 1</code> (tentative)</div>
+                    <img src="img/task3/bunny_softshadow_l1.png" alt="CBbunny soft shadow with 1 light ray"/>
+                    <div class="image-caption"><code>-l 1</code></div>
                 </div>
                 <div class="image-item">
-                    <img src="img/task3/wall-e-4.png" alt="Stand-in scene four light samples"/>
-                    <div class="image-caption"><strong>Stand-in</strong> for <code>-l 4</code> — swap for <code>CBbunny</code> when available</div>
+                    <img src="img/task3/bunny_softshadow_l4.png" alt="CBbunny soft shadow with 4 light rays"/>
+                    <div class="image-caption"><code>-l 4</code></div>
                 </div>
                 <div class="image-item">
-                    <img src="img/task3/CBbunny_16_8_3.2.png" alt="CBbunny sixteen light samples"/>
-                    <div class="image-caption"><code>-l 16</code> (tentative — confirm flags)</div>
+                    <img src="img/task3/bunny_softshadow_l16.png" alt="CBbunny soft shadow with 16 light rays"/>
+                    <div class="image-caption"><code>-l 16</code></div>
                 </div>
                 <div class="image-item">
-                    <img src="img/task3/CBbunny_64_32_3-4.png" alt="CBbunny 64 light samples"/>
-                    <div class="image-caption"><code>-l 64</code> (tentative)</div>
+                    <img src="img/task3/bunny_softshadow_l64.png" alt="CBbunny soft shadow with 64 light rays"/>
+                    <div class="image-caption"><code>-l 64</code></div>
                 </div>
             </div>
 
-            <h3>Noise comparison</h3>
-            <p>Testing on CBbunny with 1 sample per pixel and varying numbers of light samples, the progression is pretty satisfying to watch. At 1 light sample shadows are extremely grainy and you can barely make out the shape of the shadow. At 4 things start to clean up noticeably. At 16 it looks pretty reasonable and at 64 the shadows are crisp and stable. Comparing importance sampling to hemisphere sampling at the same budget, importance sampling wins by a wide margin. Hemisphere sampling wastes most of its budget on directions that contribute nothing, so you need way more samples to get the same quality.</p>
-        </div>
+			</div>
 
         <div class="section" id="part4">
             <h2>Part 4: Global Illumination</h2>
-            <p>Direct lighting only captures light that comes straight from a source. Global illumination captures everything else, meaning light that has bounced off other surfaces before arriving at the point you're shading. When I first saw indirect lighting kick in I immediately understood why path tracing became the standard for offline rendering.</p>
+            <p>When I started thinking about the physics of light, it became obvious that light bounces off every object, and direct lighting that only captures light that comes straight from a source oversimplifies reality. When I first saw indirect lighting kick in I immediately understood why path tracing became the standard for offline rendering.</p>
 
             <h3>Implementation</h3>
             <p>At each surface intersection I compute one bounce of direct lighting, then sample a new direction from the BSDF, cast a new ray in that direction, and recursively gather the incoming radiance from wherever that ray lands. The contribution gets weighted by the BSDF value, cosine term, and divided by the pdf of the sampled direction, which is just the standard Monte Carlo estimator for the rendering equation applied recursively.</p>
             <p>For termination I used Russian roulette rather than a hard depth cutoff. At each bounce I randomly decide whether to terminate the path with some probability, and scale up surviving paths to keep the estimator unbiased. I like to think of it as the path having to earn the right to keep going, and the ones that survive carry extra weight to compensate for their fallen peers.</p>
 
-            <h3>Results — global illumination (high sample count)</h3>
-            <p>Full global illumination at <code>1024</code> samples per pixel (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>).</p>
-            <div class="image-grid image-grid-2">
-                <div class="image-item">
-                    <img src="img/task4/bunny_s1024.png" alt="CBbunny path traced 1024 spp"/>
-                    <div class="image-caption">CBbunny — <code>1024</code> spp (tentative)</div>
-                </div>
-                <div class="image-item">
-                    <img src="img/task4/Bunny_global_m5_o1.png" alt="Global illumination render max depth 5"/>
-                    <div class="image-caption">Global render — <code>Bunny_global_m5_o1.png</code> (tentative caption)</div>
-                </div>
-            </div>
-
             <h3>Direct vs indirect</h3>
             <p>Rendering direct and indirect contributions separately really drives home what each one is doing. Direct only looks clear and sharp but weirdly flat, like a stage with harsh spotlights. Indirect only looks almost like ambient occlusion, soft and diffuse with colored light bleeding in from the walls. Together they produce something that actually looks like a real room. The colored light bouncing off the red and blue walls onto the bunny is almost entirely an indirect effect and it's what makes the image feel grounded and believable.</p>
-            <p>Separated contributions at <code>1024</code> spp (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>) — filenames mapped tentatively to “direct only” vs “indirect only” code paths.</p>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
-                    <img src="img/task4/Bunny_m1_o0.png" alt="Direct illumination only"/>
-                    <div class="image-caption">Direct illumination only (tentative: <code>Bunny_m1_o0.png</code>)</div>
+                    <img src="img/task3/CBbunny_64_32_3-4.png" alt="Direct illumination only"/>
+                    <div class="image-caption">Direct illumination only</div>
                 </div>
                 <div class="image-item">
-                    <img src="img/task4/bunny_indirect_test.png" alt="Indirect illumination only"/>
-                    <div class="image-caption">Indirect only / indirect debug (tentative: <code>bunny_indirect_test.png</code>)</div>
+                    <img src="img/task4/Bunny_global_m5_o1.png" alt="Indirect illumination only"/>
+                    <div class="image-caption">Indirect only</div>
                 </div>
             </div>
 
             <h3>Bounce analysis</h3>
-            <p>Looking at individual bounces in isolation, <code>m = 0</code> is just the light source emission. <code>m = 1</code> is direct lighting with sharp shadows. <code>m = 2</code> is where things get interesting because you start seeing light fill in the shadowed regions as photons that bounced off the floor or walls arrive. <code>m = 3</code> adds a bit more diffuse fill and the scene feels softer and more natural. The jump from <code>m = 1</code> to <code>m = 2</code> is the biggest visual change by far. That's where global illumination starts doing its thing. With accumulation each bounce adds a little more completeness and the scene gradually converges to something realistic.</p>
+            <p>Looking at individual bounces in isolation, <code>m = 0</code> is just the light source emission. <code>m = 1</code> is direct lighting with sharp shadows. <code>m = 2</code> is where things get interesting because you start seeing light fill in the shadowed regions as photons that bounced off the floor or walls arrive. <code>m = 3</code> adds a bit more diffuse fill and the scene feels softer and more natural. The jump from <code>m = 1</code> to <code>m = 2</code> is the biggest visual change by far. That's where global illumination starts doing its thing. With accumulation each bounce adds a little more completeness and the scene gradually converges to something realistic. I think its nice to look through each bounce and imagine them stacking into the accumulated image</p>
 
             <h4>CBbunny: individual bounce terms (<code>-m</code>, not accumulated)</h4>
-            <p>Max ray depth 0–5 with <code>isAccumBounces = false</code>, <code>1024</code> spp (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>). <code>m = 0</code> uses <code>bunny_rr_m0.png</code>; <code>m = k</code> panels use <code>Bunny_mk_o0.png</code> — confirm against your CLI exports.</p>
             <div class="image-grid image-grid-3">
                 <div class="image-item">
                     <img src="img/task4/bunny_rr_m0.png" alt="Bounce m equals 0"/>
@@ -499,7 +467,7 @@
             </div>
 
             <h4>CBbunny: accumulated vs unaccumulated per depth</h4>
-            <p>Each pair: <code>..._o0</code> (not accumulated) vs <code>..._o1</code> (accumulated), <code>1024</code> spp (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>). The rubric also asks for <code>m = 0</code>; add that pair here if your exports use separate <code>Bunny_m0_o0 / o1</code> filenames — I only had meaningful splits for <code>m = 1 … 5</code> on disk.</p>
+            <p>Each pair: <code>..._o0</code> (not accumulated) vs <code>..._o1</code> (accumulated), <code>1024</code> spp. If you export <code>m = 0</code> as separate <code>Bunny_m0_o0 / o1</code> images, add that pair here — I only had splits for <code>m = 1 … 5</code> on disk.</p>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
                     <img src="img/task4/Bunny_m1_o0.png" alt="m1 o0"/>
@@ -539,17 +507,16 @@
                 </div>
                 <div class="image-item">
                     <img src="img/task4/Bunny_m5_o1.png" alt="m5 o1"/>
-                    <div class="image-caption"><code>m = 5</code>, o1</div>
+                    <div class="image-caption"><code>m = 5</code>, accumulated</div>
                 </div>
             </div>
 
             <h3>Russian roulette</h3>
-            <p>Comparing max depth 5 to max depth 100 with Russian roulette, the images look essentially identical. This makes sense because deeper paths contribute exponentially less energy. The light has been multiplied by so many BSDF values and divided by so many pdfs that by bounce 5 or 6 the contribution is negligible. Russian roulette just makes this explicit by terminating those paths early and folding their tiny contribution into zero probabilistically, saving a lot of computation for no visible cost.</p>
-            <p>CBbunny Russian roulette sweeps at <code>1024</code> spp, <code>-m</code> ∈ {0, 1, 2, 3, 4, 100} (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>).</p>
+            <p>Comparing max depth 3-4 to max depth 100 with Russian roulette, the images look very similar. This makes sense because deeper paths contribute exponentially less energy. The light has been multiplied by so many BSDF values and divided by so many pdfs that by bounce 3-4 the contribution is negligible. Russian roulette just makes this explicit by terminating those paths early and folding their tiny contribution into zero probabilistically, saving a lot of computation for no visible cost.</p>
             <div class="image-grid image-grid-3">
                 <div class="image-item">
                     <img src="img/task4/bunny_rr_m0.png" alt="Russian roulette max depth 0"/>
-                    <div class="image-caption"><code>-m 0</code> + RR (tentative)</div>
+                    <div class="image-caption"><code>-m 0</code> + RR</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task4/bunny_rr_m1.png" alt="Russian roulette max depth 1"/>
@@ -574,8 +541,7 @@
             </div>
 
             <h3>Samples per pixel</h3>
-            <p>The noise progression from 1 spp to 1024 spp behaves exactly like you'd expect from Monte Carlo theory. 1 and 4 spp are very noisy. 8 to 16 are usable but still grainy. 64 looks pretty clean. 1024 is essentially noise-free. The frustrating thing about Monte Carlo is that to halve the noise you have to quadruple the samples, which is why all the variance reduction techniques like importance sampling and adaptive sampling matter so much.</p>
-            <p>Same scene, <code>4</code> light rays (<code>-l 4</code>), varying samples per pixel (<a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">spec</a>).</p>
+            <p>The noise progression from 1 spp to 1024 spp behaves exactly like you'd expect from Monte Carlo theory. 1 and 4 spp are uninterpretable. 8 to 16 you can start to see the bunny but its still unusable. 64 looks pretty clean. 1024 is essentially noise-free. The frustrating thing about Monte Carlo is that to halve the noise you have to quadruple the samples, which is why all the variance reduction techniques like importance sampling and adaptive sampling matter so much.</p>
             <div class="image-grid image-grid-3">
                 <div class="image-item">
                     <img src="img/task4/bunny_s1.png" alt="1 sample per pixel"/>
@@ -617,18 +583,24 @@
 
             <h3>Results</h3>
             <p>The sampling rate visualization makes the effect immediately obvious. Flat regions like walls and the ceiling show up blue because they converge in very few samples. Complex regions like shadow boundaries, the edges of the bunny, and areas with indirect lighting show up red because they need much more work to pin down. The final image looks comparable to a uniformly high-sample render but the adaptive version gets there faster by concentrating samples where they actually matter.</p>
-            <p><a href="https://cs184.eecs.berkeley.edu/sp26/hw/hw3/deliverables/">Spec</a>: ≥<code>2048</code> spp, <code>-l 1</code>, max ray depth ≥<code>5</code>, plus sample-rate heatmap alongside the converged image, for <strong>two</strong> scenes. Below is one scene pair from <code>img/task5/</code>; add a second scene’s pair when you have the renders.</p>
             <div class="image-grid image-grid-2">
                 <div class="image-item">
                     <img src="img/task5/adaptive_sample_5_rate.png" alt="Adaptive sampling rate visualization"/>
-                    <div class="image-caption">Sample-rate map (scene 1, tentative)</div>
+                    <div class="image-caption">Bunny Sample-rate map</div>
                 </div>
                 <div class="image-item">
                     <img src="img/task5/adaptive_sample_5.png" alt="Adaptive sampling final render"/>
-                    <div class="image-caption">Final adaptive render (scene 1, tentative)</div>
+                    <div class="image-caption">Bunny adaptive render </div>
+                </div>
+				<div class="image-item">
+                    <img src="img/task5/test_rate.png" alt="Adaptive sampling rate visualization"/>
+                    <div class="image-caption">Spheres Sample-rate map</div>
+                </div>
+                <div class="image-item">
+                    <img src="img/task5/test.png" alt="Adaptive sampling final render"/>
+                    <div class="image-caption">Sphere adaptive render </div>
                 </div>
             </div>
-            <p><strong>TODO (second scene):</strong> duplicate the two-panel layout with another scene at ≥<code>2048</code> spp for full credit per the deliverables page.</p>
         </div>
 
     </div>
