@@ -181,10 +181,9 @@
         <div class="header">
             <h1>Homework 4: Cloth Simulation</h1>
             <div class="subtitle">CS184/284A Computer Graphics and Imaging - Spring 2026</div>
-            <div class="author">Name: Bingxi Chan</div>
             <div class="links">
-                <a href="#overview">Writeup</a>
-                <a href="#part1">Implementation Notes</a>
+                <a href="https://cal-cs184-student.github.io/hw-webpages-123bingxichan/hw4/index.html">🌐 Live Webpage</a>
+                <a href=""></a>💻 No GitHub Repository cuz cloning error :/ </a>
             </div>
         </div>
 
@@ -204,25 +203,15 @@
         <div class="section" id="overview">
             <h2>Overview</h2>
             <p>
-                In this project I implemented a cloth simulator using a mass-spring model. The cloth is represented as a grid of point masses connected by structural, shearing, and bending springs. Each simulation step accumulates external forces, spring forces, Verlet integration, spring length correction, collision response, and self-collision correction. I also implemented the shading portion of the assignment, including diffuse shading, Blinn-Phong shading, texture mapping, bump mapping, displacement mapping, and mirror shading. The main lesson was that the visual quality depends on both the physics parameters and the rendering model: high stiffness can reduce stretching but can introduce jitter, while shader effects such as bump mapping can add detail without changing geometry.
+                In this project I implemented a cloth simulator using a mass-spring model. The cloth is represented as a grid of point masses connected by structural, shearing, and bending springs. Each simulation step accumulates external forces, spring forces, Verlet integration, spring length correction, collision response, and self-collision correction. I also implemented the shading portion of the assignment, including diffuse shading, Blinn-Phong shading, texture mapping, bump mapping, displacement mapping, and mirror shading. The main lesson was that the visual quality depends on both the physics parameters and the rendering model, as high stiffness can reduce stretching but can introduce jitter, while shader effects such as bump mapping can add detail without changing geometry.
             </p>
-            <div class="image-grid" style="max-width: 720px; margin: 16px auto 0;">
-                <div class="image-item"><img src="clothsim.png" alt="Cloth simulation overview"><div class="image-caption">Representative cloth result</div></div>
-            </div>
-            <div class="note">
-                The most interesting technical challenge was self-collision. A direct all-pairs check would be too slow, so I used spatial hashing to only compare point masses that land in the same local box.
-            </div>
+        
+        
         </div>
 
         <div class="section" id="part1">
             <h2>Part 1: Masses and Springs</h2>
             <p>I built the cloth as a row-major grid of point masses. For horizontal cloth, each mass lies in the x-z plane with a fixed y value; for vertical cloth, each mass lies in the x-y plane with a small random z offset so the cloth does not begin perfectly flat. The pinned list from the scene file marks which masses should stay fixed. After creating the masses, I connected neighboring masses with springs: structural springs connect immediate horizontal and vertical neighbors, shearing springs connect diagonal neighbors, and bending springs connect masses two grid steps apart horizontally or vertically. These springs store their rest lengths at construction time, which are later used by Hooke's law and the Provot length constraint.</p>
-            <div class="deliverables">
-                <strong>Required deliverables:</strong>
-                <ul>
-                    <li>Screenshots of <code>scene/pinned2.json</code> wireframe with (1) no shearing, (2) only shearing, (3) all constraints.</li>
-                </ul>
-            </div>
             <div class="image-grid">
                 <div class="image-item"><img src="img/task1/no_restraints.png" alt="Wireframe without shearing constraints"><div class="image-caption">No shearing constraints</div></div>
                 <div class="image-item"><img src="img/task1/only_shearing.png" alt="Wireframe with only shearing constraints"><div class="image-caption">Only shearing constraints</div></div>
@@ -233,16 +222,7 @@
         <div class="section" id="part2">
             <h2>Part 2: Simulation via Numerical Integration</h2>
             <p>For each simulation step I first compute the total external force on each point mass, mainly gravity scaled by the mass of a grid point. Then I add spring forces using Hooke's law. Bending springs use a weaker stiffness, 0.2 times the main stiffness, because they are meant to resist folding gently rather than make the cloth rigid. I update positions with Verlet integration: the new position depends on the current position, previous position, damping, and acceleration over the time step. Pinned masses are skipped. After integration, I apply collision handling and then enforce Provot's constraint so no spring can stretch beyond 110 percent of its rest length in a single step.</p>
-            <div class="deliverables">
-                <strong>Required deliverables:</strong>
-                <ul>
-                    <li>Discuss behavior differences for very low vs high <code>ks</code>.</li>
-                    <li>Discuss behavior differences for density.</li>
-                    <li>Discuss behavior differences for damping.</li>
-                    <li>Provide screenshots showing notable differences from default settings.</li>
-                    <li>Show final resting shaded cloth from <code>scene/pinned4.json</code> and list any non-default parameters.</li>
-                </ul>
-            </div>
+        
             <p>Low <code>ks</code> makes the springs weaker, so the cloth stretches and sags more before settling. High <code>ks</code> makes the springs resist stretching more strongly; the cloth holds its shape better, but the motion can look more energetic or jittery because the forces become much larger.</p>
             <p>Increasing density gives each point mass more mass, so gravity has a stronger visual effect and the cloth tends to sag more deeply. Lower density makes the cloth feel lighter, with less pronounced sag. Damping controls how quickly motion dies out: low damping lets the cloth swing and oscillate for longer, while high damping makes it settle much faster.</p>
             <div class="image-grid">
@@ -260,13 +240,6 @@
         <div class="section" id="part3">
             <h2>Part 3: Handling Collisions with Other Objects</h2>
             <p>For sphere collisions, I check whether a point mass has moved inside the sphere by comparing its distance from the sphere center to the sphere radius. If it is inside, I project it back to the sphere surface along the radial direction and apply friction by moving only part of the correction from the previous position. For plane collisions, I check whether the point mass crossed the plane between its last position and current position. If it crossed, I compute the intersection point along that path, offset it slightly away from the plane to avoid numerical sticking, and again scale the correction by friction.</p>
-            <div class="deliverables">
-                <strong>Required deliverables:</strong>
-                <ul>
-                    <li>Sphere resting cloth screenshots for <code>scene/sphere.json</code> with <code>ks = 5000</code>, <code>ks = 500</code>, and <code>ks = 50000</code>, with discussion.</li>
-                    <li>Screenshot of shaded cloth resting on a plane (custom cloth color encouraged).</li>
-                </ul>
-            </div>
             <div class="image-grid">
                 <div class="image-item"><img src="img/task3/ks500.png" alt="Sphere ks 500"><div class="image-caption">Sphere, <code>ks</code> = 500</div></div>
                 <div class="image-item"><img src="img/task3/ks5k.png" alt="Sphere ks 5000"><div class="image-caption">Sphere, <code>ks</code> = 5000 (default)</div></div>
@@ -278,92 +251,57 @@
         <div class="section" id="part4">
             <h2>Part 4: Handling Self-Collisions</h2>
             <p>I implemented self-collision using spatial hashing. At the beginning of the self-collision pass, each point mass is placed into a hash bucket based on a 3D box around its position. The box dimensions are based on the cloth grid spacing, with depth set to the larger of the width and height bucket sizes. For each point mass, I only compare it against other point masses in the same bucket. If another point mass is closer than twice the cloth thickness, I compute a correction vector that pushes the current mass away until the pair is separated by the minimum allowed distance. I average all corrections for that mass and divide by the number of simulation steps, which keeps the correction gradual and stable.</p>
-            <div class="deliverables">
-                <strong>Required deliverables:</strong>
-                <ul>
-                    <li>At least 3 screenshots showing cloth from early self-collision to a more restful state.</li>
-                    <li>Vary density and <code>ks</code>, then describe and show effects on folding behavior.</li>
-                </ul>
-            </div>
+    
             <p>With low density, the cloth is lighter and tends to form smoother, broader folds. With high density, the cloth falls more aggressively and produces more compact wrinkles as it collides with itself. Changing <code>ks</code> affects how much the cloth stretches while folding: low <code>ks</code> allows looser, deeper folds, while high <code>ks</code> keeps the cloth tighter and smoother.</p>
             <div class="image-grid">
                 <div class="image-item"><img src="img/task4/first_selfcol.png" alt="Early self-collision"><div class="image-caption">Early self-collision</div></div>
                 <div class="image-item"><img src="img/task4/mid_selfcol.png" alt="Mid self-collision"><div class="image-caption">Mid simulation fold state</div></div>
-                <div class="image-item"><img src="img/task4/resting.png" alt="Late resting self-collision"><div class="image-caption">Late / more restful state</div></div>
+                <div class="image-item"><img src="img/task4/resting.png" alt="Late resting self-collision"><div class="image-caption">Late state</div></div>
                 <div class="image-item"><img src="img/task4/d1.png" alt="Self-collision low density"><div class="image-caption">Density variation (low)</div></div>
                 <div class="image-item"><img src="img/task4/d1000.png" alt="Self-collision high density"><div class="image-caption">Density variation (high)</div></div>
-                <div class="image-item"><img src="img/task4/ks5.png" alt="Self-collision low ks"><div class="image-caption"><code>ks</code> variation (example)</div></div>
-                <div class="image-item"><img src="img/task4/Screenshot 2026-04-24 160902.png" alt="Additional self-collision result"><div class="image-caption">Additional capture</div></div>
+                <div class="image-item"><img src="img/task4/ks5.png" alt="Self-collision low ks"><div class="image-caption"> low <code>ks</code></div></div>
+                <div class="image-item"><img src="img/task4/Screenshot 2026-04-24 160902.png" alt="Self-collision high ks"><div class="image-caption">high <code>ks</code></div></div>
             </div>
         </div>
 
         <div class="section" id="part5">
             <h2>Part 5: Shaders</h2>
-            <p>A shader program controls how geometry is drawn on the GPU. The vertex shader runs once per vertex and is responsible for transforming positions into screen space while passing data such as world-space position, normal, tangent, and UV coordinates to the next stage. The fragment shader runs for each pixel covered by a triangle and computes the final color. In this assignment, the vertex shader handles transforms and displacement, while the fragment shaders implement lighting, texture lookup, bump-mapped normals, and environment reflection.</p>
-            <div class="deliverables">
-                <strong>Required deliverables:</strong>
-                <ul>
-                    <li>Blinn-Phong explanation and screenshots for ambient-only, diffuse-only, specular-only, and full Blinn-Phong.</li>
-                    <li>Texture mapping screenshot using your own custom texture.</li>
-                    <li>Bump mapping on cloth and sphere; displacement mapping on sphere, using same non-default texture.</li>
-                    <li>Compare bump vs displacement; compare results for sphere mesh coarse (<code>-o 16 -a 16</code>) vs fine (<code>-o 128 -a 128</code>).</li>
-                    <li>Mirror shader on cloth and sphere.</li>
-                    <li>Explain your custom shader (if implemented).</li>
-                </ul>
+
+            <p>A <em>shader program</em> on the GPU is the pair (or small pipeline) of stages you write that turns mesh data into pixels. The <strong>vertex shader</strong> runs once per vertex: it transforms positions (for example from model space to clip space), and can also output <em>varyings</em> such as world-space position, normal, tangent, and UV coordinates that get interpolated across each triangle. The <strong>fragment shader</strong> runs once per covered pixel (fragment): it receives those interpolated values and decides the final color, including lighting, textures, and special effects. Together, the vertex stage establishes <em>where</em> the surface is and what per-pixel inputs should be, and the fragment stage interprets that as <em>how</em> the surface responds to light and materials.</p>
+
+            <p><strong>Blinn–Phong</strong> is a local shading model that approximates how a surface looks under a few light sources. It splits the response into three terms: <strong>ambient</strong> (a small constant so shadows are not pitch black), <strong>diffuse</strong> (Lambert-like: brightness grows with how much the surface faces the light), and <strong>specular</strong> (shiny highlights). Blinn–Phong’s specular uses the <em>halfway vector</em> between the view direction and the light direction instead of the reflected light direction, then raises the dot product with the normal to a shininess power. The lit color is typically the sum of ambient, diffuse, and specular (times material and light colors). Below are the four required breakdowns plus the full model.</p>
+            <div class="image-grid">
+                <div class="image-item"><img src="img/task5/phong_ambient.png" alt="Blinn-Phong ambient only"><div class="image-caption">Ambient component only</div></div>
+                <div class="image-item"><img src="img/task5/phong_diffuse.png" alt="Blinn-Phong diffuse only"><div class="image-caption">Diffuse component only</div></div>
+                <div class="image-item"><img src="img/task5/phong_specular.png" alt="Blinn-Phong specular only"><div class="image-caption">Specular component only</div></div>
+                <div class="image-item"><img src="img/task5/phong_full.png" alt="Blinn-Phong full model"><div class="image-caption">Full Blinn–Phong</div></div>
             </div>
 
-            <h3>Blinn-Phong Components</h3>
-            <p>Blinn-Phong shading combines ambient, diffuse, and specular lighting. Ambient lighting is a small constant term that keeps shadowed areas from becoming completely black. Diffuse lighting models matte reflection and depends on the angle between the surface normal and the light direction. Specular lighting models shiny highlights. Instead of reflecting the light vector directly like classic Phong shading, Blinn-Phong uses a halfway vector between the view direction and the light direction, then raises the normal-halfway dot product to a shininess exponent. The final shader output is the sum of these three terms.</p>
+            <p>For <strong>texture mapping</strong>, I replaced the default asset with a custom texture under <code>/textures/</code> (not <code>texture_2.png</code>). The fragment shader samples that 2D image using interpolated UVs and uses the result as the surface’s base color (and/or other material channels depending on the shader).</p>
             <div class="image-grid">
-                <div class="image-item"><img src="img/task5/phong_ambient.png" alt="Ambient only"><div class="image-caption">Ambient only</div></div>
-                <div class="image-item"><img src="img/task5/phong_diffuse.png" alt="Diffuse only"><div class="image-caption">Diffuse only</div></div>
-                <div class="image-item"><img src="img/task5/phong_specular.png" alt="Specular only"><div class="image-caption">Specular only</div></div>
-                <div class="image-item"><img src="img/task5/phong_full.png" alt="Full Blinn-Phong"><div class="image-caption">Full Blinn-Phong</div></div>
+                <div class="image-item"><img src="img/task5/custom_texture.png" alt="Custom texture mapping on cloth"><div class="image-caption">Texture mapping with custom texture</div></div>
             </div>
 
-            <h3>Texture, Bump, Displacement, and Mirror</h3>
-            <p>Texture mapping samples an image using the interpolated UV coordinate and uses that sampled color as the material color. Bump mapping uses a height texture to perturb the surface normal in tangent space, which changes the lighting and creates the appearance of small surface detail without moving any vertices. Displacement mapping uses the same idea but actually moves vertices along their normals in the vertex shader, so the silhouette and geometry can change when the mesh is dense enough. Mirror shading uses the view direction and surface normal to compute a reflection vector, then samples the cubemap in that reflected direction.</p>
+            <p>For <strong>bump vs displacement</strong>, I used the <em>same</em> non-default texture for both. <strong>Bump mapping</strong> perturbs the shading normal using the height map (typically in tangent space), so lighting looks detailed but the underlying triangle mesh does not move; that is why the cloth and sphere can show rich detail without changing silhouette. <strong>Displacement mapping</strong> uses the height map in the <strong>vertex shader</strong> to offset vertices along the normal, so real geometry (and silhouettes) can change, but only where the mesh has enough tessellation. Comparing the two visually: bump tends to read as “fine lighting detail,” while displacement reads as “actual bumps and valleys” when the mesh is fine enough. On the <strong>sphere</strong>, I compared a coarse mesh (<code>-o 16 -a 16</code>) to a fine mesh (<code>-o 128 -a 128</code>): bump still suggests detail on the coarse sphere because normals are faked per pixel, whereas displacement on the coarse sphere looks blocky or muted until the mesh is refined, where displacement becomes much more convincing.</p>
             <div class="image-grid">
-                <div class="image-item"><img src="img/task5/custom_texture.png" alt="Texture mapping"><div class="image-caption">Texture mapping (custom texture)</div></div>
-                <div class="image-item"><img src="img/task5/bump.png" alt="Bump mapping cloth"><div class="image-caption">Bump mapping on cloth</div></div>
-                <div class="image-item"><img src="img/task5/bump128.png" alt="Bump mapping sphere"><div class="image-caption">Bump mapping on sphere</div></div>
-                <div class="image-item"><img src="img/task5/displacement.png" alt="Displacement mapping sphere"><div class="image-caption">Displacement mapping on sphere</div></div>
+                <div class="image-item"><img src="img/task5/bump.png" alt="Bump mapping on cloth"><div class="image-caption">Bump mapping on cloth</div></div>
+                <div class="image-item"><img src="img/task5/bump128.png" alt="Bump mapping on sphere"><div class="image-caption">Bump mapping on sphere</div></div>
+                <div class="image-item"><img src="img/task5/displacement.png" alt="Displacement mapping on sphere"><div class="image-caption">Displacement mapping on sphere</div></div>
+            </div>
+            <div class="image-grid">
+                <div class="image-item"><img src="img/task5/bump16.png" alt="Bump on coarse sphere"><div class="image-caption">Bump, sphere <code>-o 16 -a 16</code></div></div>
+                <div class="image-item"><img src="img/task5/bump128.png" alt="Bump on fine sphere"><div class="image-caption">Bump, sphere <code>-o 128 -a 128</code></div></div>
+                <div class="image-item"><img src="img/task5/displacement16.png" alt="Displacement on coarse sphere"><div class="image-caption">Displacement, sphere <code>-o 16 -a 16</code></div></div>
+                <div class="image-item"><img src="img/task5/displacement128.png" alt="Displacement on fine sphere"><div class="image-caption">Displacement, sphere <code>-o 128 -a 128</code></div></div>
+            </div>
+
+            <p>The <strong>mirror shader</strong> reflects the view direction about the surface normal and samples the environment cubemap along that reflected direction, which produces mirror-like reflections. Below are captures with the mirror material on the cloth and on the sphere.</p>
+            <div class="image-grid">
                 <div class="image-item"><img src="img/task5/mirror.png" alt="Mirror shader on cloth"><div class="image-caption">Mirror shader on cloth</div></div>
                 <div class="image-item"><img src="img/task5/mirror.png" alt="Mirror shader on sphere"><div class="image-caption">Mirror shader on sphere</div></div>
             </div>
 
-            <h3>Sphere mesh resolution: <code>-o 16 -a 16</code> vs <code>-o 128 -a 128</code></h3>
-            <p>With the coarse <code>-o 16 -a 16</code> sphere, bump mapping still shows surface lighting detail because it only changes normals in the fragment shader. Displacement mapping is much more limited on the coarse sphere because there are not enough vertices to move smoothly. With the fine <code>-o 128 -a 128</code> sphere, displacement mapping becomes much more convincing because the mesh has enough geometry for the height map to create actual shape changes.</p>
-            <div class="image-grid">
-                <div class="image-item"><img src="img/task5/bump16.png" alt="Bump mapping coarse sphere"><div class="image-caption">Bump, coarse sphere</div></div>
-                <div class="image-item"><img src="img/task5/bump128.png" alt="Bump mapping fine sphere"><div class="image-caption">Bump, fine sphere</div></div>
-                <div class="image-item"><img src="img/task5/displacement16.png" alt="Displacement coarse sphere"><div class="image-caption">Displacement, coarse sphere</div></div>
-                <div class="image-item"><img src="img/task5/displacement128.png" alt="Displacement fine sphere"><div class="image-caption">Displacement, fine sphere</div></div>
-            </div>
-        </div>
-
-        <div class="section" id="part6">
-            <h2>Optional Part 6: Extra Credit</h2>
-            <p>I did not implement an optional extra-credit feature. I focused on completing the required cloth simulation, collision handling, self-collision, and shader tasks.</p>
-            <div class="deliverables">
-                <strong>If completed, include:</strong>
-                <ul>
-                    <li>A clear description of each extra-credit feature.</li>
-                    <li>Screenshots demonstrating results.</li>
-                    <li>Comparison against baseline behavior when applicable.</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Submission Checklist</h2>
-            <ul>
-                <li>Code submitted to Gradescope: <code>[Homework 4] Code: ClothSim</code>.</li>
-                <li>Checkpoint quiz submitted (no slip days allowed).</li>
-                <li>Write-up PDF submitted to <code>[Homework 4] Write-Up: ClothSim</code> with correct pages selected.</li>
-                <li>All image paths are relative (no absolute paths).</li>
-                <li>Public webpage link is included at the top of this page.</li>
-            </ul>
+            <p><strong>Custom shader:</strong> I did not implement an additional custom shader beyond the required course shaders; the write-up above covers Blinn–Phong, texture, bump, displacement, and mirror.</p>
         </div>
     </div>
 </body>
